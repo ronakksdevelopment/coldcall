@@ -1,0 +1,2572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>CallDesk 1.0 - Cold Calling CRM</title>
+<meta name="description" content="CallDesk is a lightweight cold calling CRM with Google Sheets sync.">
+<meta name="theme-color" content="#2563EB" id="themeColorMeta">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%232563EB'/%3E%3Cpath fill='%23fff' d='M8.1 6.3c.3-.3.8-.3 1.1 0l1.8 1.8c.3.3.3.8 0 1.1l-1 1c.6 1.2 1.6 2.2 2.8 2.8l1-1c.3-.3.8-.3 1.1 0l1.8 1.8c.3.3.3.8 0 1.1l-1.2 1.2c-.5.5-1.3.7-2 .4-2.6-1-4.9-3.3-5.9-5.9-.3-.7-.1-1.5.4-2l1.1-1.3z'/%3E%3C/svg%3E">
+<link rel="manifest" id="manifestLink" href="data:application/manifest+json,%7B%22name%22%3A%22CallDesk%22%2C%22short_name%22%3A%22CallDesk%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22theme_color%22%3A%22%232563EB%22%2C%22background_color%22%3A%22%23F8FAFC%22%7D">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* ===================== DESIGN TOKENS ===================== */
+:root{
+  --primary:#2563EB;
+  --primary-hover:#1D4ED8;
+  --primary-soft:#EFF6FF;
+  --bg:#F8FAFC;
+  --surface:#FFFFFF;
+  --text:#111827;
+  --text-secondary:#64748B;
+  --border:#E2E8F0;
+  --success:#16A34A;
+  --success-soft:#F0FDF4;
+  --warning:#D97706;
+  --warning-soft:#FFFBEB;
+  --danger:#DC2626;
+  --danger-soft:#FEF2F2;
+  --neutral-soft:#F1F5F9;
+  --radius-sm:8px;
+  --radius-md:10px;
+  --radius-lg:12px;
+  --shadow-sm:0 1px 2px rgba(15,23,42,.04);
+  --shadow-md:0 4px 12px rgba(15,23,42,.08);
+  --sidebar-w:250px;
+  color-scheme: light;
+}
+html[data-theme="dark"]{
+  --primary-soft:#1E293B;
+  --bg:#0F172A;
+  --surface:#1E293B;
+  --text:#F1F5F9;
+  --text-secondary:#94A3B8;
+  --border:#334155;
+  --success-soft:#06281A;
+  --warning-soft:#2E220A;
+  --danger-soft:#2E1313;
+  --neutral-soft:#273548;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.3);
+  --shadow-md:0 4px 16px rgba(0,0,0,.45);
+  color-scheme: dark;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+button{font-family:inherit;}
+a{color:inherit;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+/* ===================== APP SHELL ===================== */
+.app{display:flex;min-height:100vh;}
+
+/* ---- Sidebar ---- */
+.sidebar{
+  width:var(--sidebar-w);
+  flex-shrink:0;
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  position:fixed;
+  top:0;left:0;bottom:0;
+  z-index:40;
+  transition:transform .2s ease;
+}
+.sidebar-header{
+  display:flex;align-items:center;gap:10px;
+  padding:20px 18px;
+  border-bottom:1px solid var(--border);
+}
+.sidebar-logo{
+  width:34px;height:34px;border-radius:9px;
+  background:var(--primary);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:16px;flex-shrink:0;
+}
+.sidebar-title{font-weight:700;font-size:16px;letter-spacing:-.2px;}
+.sidebar-sub{font-size:11px;color:var(--text-secondary);}
+
+.nav{flex:1;overflow-y:auto;padding:14px 10px;}
+.nav-label{
+  font-size:11px;font-weight:600;color:var(--text-secondary);
+  text-transform:uppercase;letter-spacing:.06em;
+  padding:10px 10px 6px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 12px;margin-bottom:2px;
+  border-radius:var(--radius-sm);
+  font-size:14px;font-weight:500;color:var(--text);
+  cursor:pointer;border:none;background:none;width:100%;text-align:left;
+}
+.nav-item i{width:16px;text-align:center;color:var(--text-secondary);font-size:13px;}
+.nav-item:hover{background:var(--neutral-soft);}
+.nav-item.active{background:var(--primary-soft);color:var(--primary);}
+.nav-item.active i{color:var(--primary);}
+.nav-count{
+  margin-left:auto;font-size:11px;font-weight:600;color:var(--text-secondary);
+  background:var(--neutral-soft);padding:1px 7px;border-radius:999px;
+}
+.nav-item.active .nav-count{background:#DBEAFE;color:var(--primary);}
+
+.sidebar-footer{
+  border-top:1px solid var(--border);
+  padding:12px;
+}
+.member-card{
+  display:flex;align-items:center;gap:10px;
+  padding:8px;border-radius:var(--radius-sm);
+  cursor:pointer;position:relative;
+}
+.member-card:hover{background:var(--neutral-soft);}
+.member-avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--primary);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;flex-shrink:0;
+}
+.member-info{min-width:0;flex:1;}
+.member-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.member-email{font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--success);flex-shrink:0;}
+.sync-dot.offline{background:var(--text-secondary);}
+.sync-dot.syncing{background:var(--warning);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ---- Main ---- */
+.main{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-width:0;}
+
+.topbar{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:16px 28px;
+  position:sticky;top:0;z-index:30;
+  padding-top:calc(16px + env(safe-area-inset-top,0px));
+}
+.topbar-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.topbar-title-wrap{display:flex;align-items:center;gap:10px;}
+.menu-btn{display:none;background:none;border:none;font-size:18px;color:var(--text);cursor:pointer;padding:4px;}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.3px;margin:0;}
+.page-subtitle{font-size:13px;color:var(--text-secondary);margin:2px 0 0;}
+.topbar-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+
+.search-box{
+  display:flex;align-items:center;gap:8px;
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:8px 12px;
+  width:260px;
+}
+.search-box input{border:none;background:none;outline:none;font-size:13px;width:100%;color:var(--text);}
+.search-box i{color:var(--text-secondary);font-size:12px;}
+
+.btn{
+  display:inline-flex;align-items:center;gap:7px;
+  border-radius:var(--radius-sm);
+  border:1px solid var(--border);
+  background:var(--surface);
+  color:var(--text);
+  font-size:13px;font-weight:600;
+  padding:8px 14px;
+  cursor:pointer;
+  transition:background .12s,border-color .12s;
+  white-space:nowrap;
+}
+.btn:hover{background:var(--neutral-soft);}
+.btn:disabled{opacity:.55;cursor:not-allowed;}
+.btn-primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-hover);}
+.btn-danger{background:var(--danger);border-color:var(--danger);color:#fff;}
+.btn-danger:hover{background:#B91C1C;}
+.btn-ghost{border-color:transparent;background:none;}
+.btn-ghost:hover{background:var(--neutral-soft);}
+.btn-sm{padding:6px 10px;font-size:12px;}
+.icon-btn{
+  width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);
+  color:var(--text-secondary);cursor:pointer;
+}
+.icon-btn:hover{background:var(--neutral-soft);color:var(--text);}
+
+.sync-indicator{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;color:var(--text-secondary);
+  padding:0 2px;
+}
+.sync-indicator .sync-dot{width:7px;height:7px;}
+
+/* ---- Content ---- */
+.content{padding:24px 28px 60px;flex:1;}
+.banner{
+  display:flex;align-items:center;gap:10px;
+  background:var(--warning-soft);border:1px solid #FDE68A;
+  color:#92400E;font-size:13px;font-weight:500;
+  padding:10px 14px;border-radius:var(--radius-sm);
+  margin-bottom:18px;
+}
+.banner i{color:var(--warning);}
+.banner.success{background:var(--success-soft);border-color:#BBF7D0;color:#166534;}
+.banner.success i{color:var(--success);}
+.banner-action{margin-left:auto;}
+
+/* ---- Stat cards ---- */
+.stats-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;
+}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+  padding:18px;box-shadow:var(--shadow-sm);
+}
+.stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.stat-icon{
+  width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;
+}
+.stat-icon.blue{background:var(--primary-soft);color:var(--primary);}
+.stat-icon.green{background:var(--success-soft);color:var(--success);}
+.stat-icon.amber{background:var(--warning-soft);color:var(--warning);}
+.stat-icon.purple{background:#F5F3FF;color:#7C3AED;}
+.stat-value{font-size:26px;font-weight:800;letter-spacing:-.5px;}
+.stat-label{font-size:12.5px;color:var(--text-secondary);margin-top:2px;}
+
+/* ---- Toolbar ---- */
+.toolbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;
+}
+.filter-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{
+  font-size:12.5px;font-weight:600;color:var(--text-secondary);
+  background:var(--surface);border:1px solid var(--border);
+  padding:6px 12px;border-radius:999px;cursor:pointer;
+}
+.chip:hover{background:var(--neutral-soft);}
+.chip.active{background:var(--text);border-color:var(--text);color:#fff;}
+.toolbar-right{display:flex;align-items:center;gap:8px;}
+select.select-input{
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--surface);padding:7px 10px;font-size:12.5px;color:var(--text);outline:none;
+}
+
+/* ---- Table ---- */
+.table-wrap{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+  overflow:hidden;box-shadow:var(--shadow-sm);
+}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{
+  text-align:left;font-size:11px;font-weight:700;color:var(--text-secondary);
+  text-transform:uppercase;letter-spacing:.04em;
+  padding:11px 16px;border-bottom:1px solid var(--border);background:var(--neutral-soft);
+  white-space:nowrap;
+}
+tbody td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr{cursor:pointer;}
+tbody tr:hover{background:var(--neutral-soft);}
+.cell-name{font-weight:600;color:var(--text);}
+.cell-sub{font-size:12px;color:var(--text-secondary);margin-top:1px;}
+.avatar-sm{
+  width:30px;height:30px;border-radius:50%;background:var(--primary-soft);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;
+}
+.name-cell{display:flex;align-items:center;gap:10px;}
+.badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;
+}
+.badge-dot{width:6px;height:6px;border-radius:50%;}
+.badge.status-new{background:#F1F5F9;color:#475569;}
+.badge.status-new .badge-dot{background:#64748B;}
+.badge.status-not_called{background:#F1F5F9;color:#475569;}
+.badge.status-not_called .badge-dot{background:#94A3B8;}
+.badge.status-called{background:#EFF6FF;color:#1D4ED8;}
+.badge.status-called .badge-dot{background:#2563EB;}
+.badge.status-interested{background:var(--success-soft);color:#15803D;}
+.badge.status-interested .badge-dot{background:var(--success);}
+.badge.status-not_interested{background:var(--danger-soft);color:#B91C1C;}
+.badge.status-not_interested .badge-dot{background:var(--danger);}
+.badge.status-follow_up{background:var(--warning-soft);color:#B45309;}
+.badge.status-follow_up .badge-dot{background:var(--warning);}
+.badge.status-converted{background:#F5F3FF;color:#7C3AED;}
+.badge.status-converted .badge-dot{background:#7C3AED;}
+
+.row-actions{display:flex;align-items:center;gap:6px;}
+.overdue{color:var(--danger);font-weight:700;}
+
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--text-secondary);
+}
+.empty-state i{font-size:32px;margin-bottom:12px;color:#CBD5E1;}
+.empty-state h3{font-size:15px;color:var(--text);margin:0 0 4px;}
+.empty-state p{font-size:13px;margin:0 0 16px;}
+
+/* ---- Mobile cards ---- */
+.card-list{display:none;flex-direction:column;gap:10px;}
+.contact-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);
+  padding:14px;box-shadow:var(--shadow-sm);
+}
+.contact-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.contact-card-meta{font-size:12.5px;color:var(--text-secondary);display:flex;flex-direction:column;gap:3px;margin-bottom:10px;}
+.contact-card-meta span i{width:14px;color:#94A3B8;margin-right:6px;}
+.contact-card-actions{display:flex;gap:8px;}
+.contact-card-actions .btn{flex:1;justify-content:center;}
+
+/* ---- Modal ---- */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,.45);
+  display:none;align-items:flex-start;justify-content:center;
+  z-index:100;padding:40px 16px;overflow-y:auto;
+}
+.modal-overlay.open{display:flex;}
+.modal{
+  background:var(--surface);border-radius:var(--radius-lg);
+  width:100%;max-width:560px;box-shadow:var(--shadow-md);
+  max-height:calc(100vh - 80px);display:flex;flex-direction:column;
+}
+.modal.modal-wide{max-width:680px;}
+.modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.modal-header h3{margin:0;font-size:16px;font-weight:700;}
+.modal-body{padding:20px 22px;overflow-y:auto;}
+.modal-footer{
+  padding:16px 22px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:10px;flex-shrink:0;
+}
+.close-x{background:none;border:none;font-size:16px;color:var(--text-secondary);cursor:pointer;padding:4px;}
+.close-x:hover{color:var(--text);}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group.full{grid-column:1/-1;}
+.form-group label{font-size:12.5px;font-weight:600;color:var(--text);}
+.form-group .req{color:var(--danger);}
+.form-group input,.form-group select,.form-group textarea{
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:9px 11px;font-size:13px;font-family:inherit;color:var(--text);outline:none;background:var(--surface);
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);}
+.form-group textarea{resize:vertical;min-height:70px;}
+.field-error{font-size:11.5px;color:var(--danger);display:none;}
+.form-group.error input,.form-group.error textarea{border-color:var(--danger);}
+.form-group.error .field-error{display:block;}
+
+/* ---- Detail view ---- */
+.detail-header{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.detail-avatar{width:48px;height:48px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0;}
+.detail-name{font-size:17px;font-weight:700;}
+.detail-company{font-size:13px;color:var(--text-secondary);}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin-bottom:18px;}
+.detail-field label{display:block;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;}
+.detail-field div{font-size:13.5px;color:var(--text);}
+.detail-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:14px;}
+.detail-tab{
+  padding:9px 4px;margin-right:18px;font-size:13px;font-weight:600;color:var(--text-secondary);
+  background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;
+}
+.detail-tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+.timeline-item{
+  display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);
+}
+.timeline-item:last-child{border-bottom:none;}
+.timeline-icon{
+  width:30px;height:30px;border-radius:50%;background:var(--neutral-soft);color:var(--text-secondary);
+  display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;
+}
+.timeline-icon.outcome-interested{background:var(--success-soft);color:var(--success);}
+.timeline-icon.outcome-converted{background:#F5F3FF;color:#7C3AED;}
+.timeline-icon.outcome-not_interested{background:var(--danger-soft);color:var(--danger);}
+.timeline-main{flex:1;min-width:0;}
+.timeline-top{display:flex;justify-content:space-between;gap:8px;}
+.timeline-title{font-size:13px;font-weight:600;}
+.timeline-time{font-size:11.5px;color:var(--text-secondary);white-space:nowrap;}
+.timeline-note{font-size:12.5px;color:var(--text-secondary);margin-top:3px;}
+.timeline-by{font-size:11px;color:#94A3B8;margin-top:4px;}
+
+.note-item{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;}
+.note-top{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-secondary);margin-bottom:4px;}
+.note-author{font-weight:700;color:var(--text);}
+.note-content{font-size:13px;}
+
+/* ---- Toasts ---- */
+.toast-stack{
+  position:fixed;bottom:20px;right:20px;z-index:200;
+  display:flex;flex-direction:column;gap:8px;
+  max-width:340px;
+}
+.toast{
+  background:var(--text);color:#fff;border-radius:var(--radius-sm);
+  padding:12px 14px;font-size:13px;display:flex;align-items:flex-start;gap:10px;
+  box-shadow:var(--shadow-md);animation:toast-in .18s ease;
+}
+.toast i{margin-top:1px;}
+.toast.success{background:#166534;}
+.toast.error{background:#B91C1C;}
+.toast.info{background:#1E293B;}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ---- Confirm dialog ---- */
+.confirm-body{font-size:13.5px;color:var(--text-secondary);line-height:1.5;}
+
+/* ---- Settings ---- */
+.settings-section{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+  padding:20px;margin-bottom:16px;max-width:640px;
+}
+.settings-section h3{margin:0 0 4px;font-size:14.5px;}
+.settings-section p.hint{margin:0 0 14px;font-size:12.5px;color:var(--text-secondary);}
+.settings-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--border);}
+.settings-row:first-of-type{border-top:none;}
+.toggle{
+  width:40px;height:22px;border-radius:999px;background:var(--border);position:relative;cursor:pointer;flex-shrink:0;transition:background .15s;
+}
+.toggle.on{background:var(--primary);}
+.toggle::after{
+  content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.2);
+}
+.toggle.on::after{transform:translateX(18px);}
+
+/* ---- Spinner ---- */
+.spinner{
+  width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;
+  animation:spin .6s linear infinite;
+}
+.spinner.dark{border:2px solid var(--border);border-top-color:var(--primary);}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-row{display:flex;align-items:center;justify-content:center;padding:50px;gap:10px;color:var(--text-secondary);font-size:13px;}
+
+/* ---- Overlay (mobile sidebar) ---- */
+.sidebar-overlay{position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:39;display:none;}
+.sidebar-overlay.open{display:block;}
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width:980px){
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .form-grid{grid-template-columns:1fr;}
+  .detail-grid{grid-template-columns:1fr;}
+}
+@media (max-width:860px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .menu-btn{display:inline-flex;align-items:center;}
+  .search-box{width:170px;}
+  .table-wrap{display:none;}
+  .card-list{display:flex;}
+  .content{padding:18px 16px 50px;}
+  .topbar{padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top,0px));}
+  .qr-desktop-only{display:none !important;}
+}
+@media (max-width:480px){
+  .stats-grid{grid-template-columns:1fr 1fr;gap:10px;}
+  .stat-value{font-size:21px;}
+  .search-box{display:none;}
+}
+
+/* ===================== LOGIN SCREEN ===================== */
+.login-screen{
+  position:fixed;inset:0;z-index:200;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+  padding:20px;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.login-card{
+  width:100%;max-width:380px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);box-shadow:var(--shadow-md);
+  padding:32px 28px;
+}
+.login-logo{
+  width:52px;height:52px;border-radius:14px;background:var(--primary);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;
+  margin:0 auto 18px;
+}
+.login-title{font-size:19px;font-weight:700;text-align:center;letter-spacing:-.2px;}
+.login-sub{font-size:13px;color:var(--text-secondary);text-align:center;margin:4px 0 24px;}
+.login-form .form-group{margin-bottom:14px;}
+.login-form label{display:block;font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;}
+.login-form input{
+  width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  font-size:14px;background:var(--surface);color:var(--text);
+}
+.login-form input:focus{outline:none;border-color:var(--primary);}
+.login-error{
+  display:none;font-size:12.5px;color:var(--danger);background:var(--danger-soft);
+  border-radius:var(--radius-sm);padding:9px 11px;margin-bottom:14px;
+}
+.login-error.show{display:block;}
+.login-submit{
+  width:100%;padding:12px;border:none;border-radius:var(--radius-sm);
+  background:var(--primary);color:#fff;font-weight:600;font-size:14px;cursor:pointer;
+}
+.login-submit:hover{background:var(--primary-hover);}
+
+/* ===================== THEME CONTROLS ===================== */
+.theme-mode-row{display:flex;gap:10px;}
+.theme-mode-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:14px 10px;border:1.5px solid var(--border);border-radius:var(--radius-md);
+  background:var(--surface);cursor:pointer;color:var(--text);
+}
+.theme-mode-btn i{font-size:16px;}
+.theme-mode-btn.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary);}
+.theme-mode-btn span{font-size:12.5px;font-weight:600;}
+
+.color-picker-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.color-swatches{display:flex;gap:8px;flex-wrap:wrap;}
+.color-swatch{
+  width:30px;height:30px;border-radius:50%;cursor:pointer;
+  border:2px solid var(--surface);box-shadow:0 0 0 1.5px var(--border);
+  flex-shrink:0;
+}
+.color-swatch.active{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--primary);}
+.color-picker-custom{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.color-picker-custom input[type="color"]{
+  width:42px;height:42px;border:1px solid var(--border);border-radius:50%;
+  padding:0;cursor:pointer;background:none;overflow:hidden;
+}
+.color-picker-custom input[type="color"]::-webkit-color-swatch-wrapper{padding:0;}
+.color-picker-custom input[type="color"]::-webkit-color-swatch{border:none;border-radius:50%;}
+.hex-input-group{display:flex;align-items:center;gap:6px;}
+.hex-input-group span{color:var(--text-secondary);font-size:13px;}
+.hex-input-group input{
+  width:110px;padding:9px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  font-size:13px;font-family:ui-monospace,monospace;background:var(--surface);color:var(--text);
+  text-transform:uppercase;
+}
+
+/* ===================== QR MODAL ===================== */
+.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;padding:6px 0 4px;}
+.qr-box{
+  display:flex;align-items:center;justify-content:center;
+  background:#fff;padding:14px;border-radius:var(--radius-md);
+  box-shadow:var(--shadow-sm);border:1px solid var(--border);
+  margin-inline:auto;
+}
+.qr-box canvas,.qr-box img{display:block;margin-inline:auto;}
+.qr-caption{font-size:13px;color:var(--text-secondary);text-align:center;max-width:280px;}
+.qr-number{display:block;font-weight:800;font-size:18px;line-height:1.4;color:var(--text);text-align:center;letter-spacing:.2px;overflow-wrap:anywhere;}
+.btn-call-qr{background:none;border:none;cursor:pointer;color:var(--text-secondary);padding:6px;border-radius:6px;}
+.btn-call-qr:hover{background:var(--neutral-soft);color:var(--text);}
+
+/* ===================== IMPORT/EXPORT ===================== */
+.io-row{display:flex;gap:10px;flex-wrap:wrap;}
+.file-drop{
+  border:1.5px dashed var(--border);border-radius:var(--radius-md);
+  padding:20px;text-align:center;cursor:pointer;flex:1;min-width:200px;
+}
+.file-drop:hover{border-color:var(--primary);background:var(--primary-soft);}
+.file-drop i{font-size:20px;color:var(--text-secondary);margin-bottom:8px;display:block;}
+.file-drop-text{font-size:13px;color:var(--text-secondary);}
+
+/* ===================== INSTALL BUTTON ===================== */
+#installBtn{color:var(--primary);}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN SCREEN ===================== -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo"><i class="fa-solid fa-phone"></i></div>
+    <div class="login-title">CallDesk</div>
+    <div class="login-sub">Sign in to continue</div>
+    <div class="login-error" id="loginError">Incorrect username or password.</div>
+    <form class="login-form" id="loginForm" novalidate>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="loginUser" autocomplete="username" placeholder="Enter your name">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPass" autocomplete="current-password" placeholder="Enter your password">
+      </div>
+      <button type="submit" class="login-submit"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button>
+    </form>
+  </div>
+</div>
+
+<div class="app" id="appRoot" style="display:none;">
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo"><i class="fa-solid fa-phone"></i></div>
+      <div>
+        <div class="sidebar-title">CallDesk</div>
+        <div class="sidebar-sub">Cold Calling CRM</div>
+      </div>
+    </div>
+
+    <nav class="nav" id="navList">
+      <div class="nav-label">Workspace</div>
+      <button class="nav-item active" data-view="dashboard"><i class="fa-solid fa-gauge"></i>Dashboard</button>
+      <button class="nav-item" data-view="all"><i class="fa-solid fa-address-book"></i>All Contacts<span class="nav-count" id="countAll">0</span></button>
+      <button class="nav-item" data-view="mine"><i class="fa-solid fa-user"></i>My Leads<span class="nav-count" id="countMine">0</span></button>
+      <button class="nav-item" data-view="followups"><i class="fa-solid fa-calendar-check"></i>Follow-ups<span class="nav-count" id="countFollowups">0</span></button>
+
+      <div class="nav-label">Status</div>
+      <button class="nav-item" data-view="called"><i class="fa-solid fa-phone-volume"></i>Called<span class="nav-count" id="countCalled">0</span></button>
+      <button class="nav-item" data-view="not_called"><i class="fa-regular fa-circle"></i>Not Called<span class="nav-count" id="countNotCalled">0</span></button>
+      <button class="nav-item" data-view="interested"><i class="fa-solid fa-thumbs-up"></i>Interested<span class="nav-count" id="countInterested">0</span></button>
+      <button class="nav-item" data-view="not_interested"><i class="fa-solid fa-thumbs-down"></i>Not Interested<span class="nav-count" id="countNotInterested">0</span></button>
+
+      <div class="nav-label">Data</div>
+      <button class="nav-item" data-view="importexport"><i class="fa-solid fa-file-excel"></i>Import / Export</button>
+
+      <div class="nav-label">App</div>
+      <button class="nav-item" data-view="settings"><i class="fa-solid fa-gear"></i>Settings</button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="member-card" id="memberCardBtn">
+        <div class="member-avatar" id="memberAvatar">A</div>
+        <div class="member-info">
+          <div class="member-name" id="memberNameLabel">Pompi Bhomik</div>
+          <div class="member-email" id="memberEmailLabel">CallDesk user</div>
+        </div>
+        <button class="icon-btn" id="logoutBtn" title="Sign out"><i class="fa-solid fa-right-from-bracket"></i></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-row">
+        <div class="topbar-title-wrap">
+          <button class="menu-btn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
+          <div>
+            <h1 class="page-title" id="pageTitle">Dashboard</h1>
+            <p class="page-subtitle" id="pageSubtitle">Overview of your cold calling pipeline</p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="globalSearch" placeholder="Search name, phone, company">
+          </div>
+          <div class="sync-indicator" id="syncIndicator">
+            <span class="sync-dot" id="topSyncDot"></span>
+            <span id="syncLabel">Local data</span>
+          </div>
+          <button class="icon-btn" id="installBtn" title="Install app" style="display:none;"><i class="fa-solid fa-circle-down"></i></button>
+          <button class="icon-btn" id="refreshBtn" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+          <button class="btn btn-primary" id="addContactBtn"><i class="fa-solid fa-plus"></i> Add Contact</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="content" id="content">
+      <!-- populated by JS -->
+    </main>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- Add / Edit Contact Modal -->
+<div class="modal-overlay" id="contactModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="contactModalTitle">Add Contact</h3>
+      <button class="close-x" data-close="contactModalOverlay"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="contactForm" novalidate>
+        <input type="hidden" id="f_contact_id">
+        <div class="form-grid">
+          <div class="form-group full" id="g_full_name">
+            <label>Full Name <span class="req">*</span></label>
+            <input type="text" id="f_full_name" placeholder="e.g. Priya Sharma">
+            <div class="field-error">Full name is required.</div>
+          </div>
+          <div class="form-group" id="g_phone">
+            <label>Phone Number <span class="req">*</span></label>
+            <input type="tel" id="f_phone" placeholder="+91 98765 43210">
+            <div class="field-error">A valid phone number is required.</div>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="f_email" placeholder="name@company.com">
+          </div>
+          <div class="form-group">
+            <label>Company</label>
+            <input type="text" id="f_company" placeholder="Company name">
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <input type="text" id="f_location" placeholder="City, Country">
+          </div>
+          <div class="form-group">
+            <label>Lead Source</label>
+            <select id="f_lead_source">
+              <option>Website</option>
+              <option>Referral</option>
+              <option>Cold List</option>
+              <option>LinkedIn</option>
+              <option>Event</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Assigned Member</label>
+            <select id="f_assigned_to"></select>
+          </div>
+          <div class="form-group">
+            <label>Lead Status</label>
+            <select id="f_status">
+              <option value="new">New</option>
+              <option value="not_called">Not Called</option>
+              <option value="called">Called</option>
+              <option value="interested">Interested</option>
+              <option value="not_interested">Not Interested</option>
+              <option value="follow_up">Follow-up</option>
+              <option value="converted">Converted</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Next Follow-up Date</label>
+            <input type="date" id="f_next_followup">
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea id="f_notes" placeholder="Any initial notes about this lead…"></textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="contactModalOverlay">Cancel</button>
+      <button class="btn btn-primary" id="saveContactBtn"><i class="fa-solid fa-check"></i> Save Contact</button>
+    </div>
+  </div>
+</div>
+
+<!-- Contact Detail Modal -->
+<div class="modal-overlay" id="detailModalOverlay">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <h3>Contact Details</h3>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="icon-btn" id="detailEditBtn" title="Edit"><i class="fa-solid fa-pen"></i></button>
+        <button class="icon-btn" id="detailDeleteBtn" title="Delete"><i class="fa-solid fa-trash"></i></button>
+        <button class="close-x" data-close="detailModalOverlay"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+    <div class="modal-body" id="detailModalBody">
+      <!-- populated by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- Call Outcome Modal -->
+<div class="modal-overlay" id="callModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Log Call Outcome</h3>
+      <button class="close-x" data-close="callModalOverlay"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="callForm">
+        <input type="hidden" id="call_contact_id">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Call Outcome <span class="req">*</span></label>
+            <select id="call_outcome">
+              <option value="No Answer">No Answer</option>
+              <option value="Busy">Busy</option>
+              <option value="Call Back Later">Call Back Later</option>
+              <option value="Interested">Interested</option>
+              <option value="Not Interested">Not Interested</option>
+              <option value="Wrong Number">Wrong Number</option>
+              <option value="Converted">Converted</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Call Notes</label>
+            <textarea id="call_notes" placeholder="What happened on the call?"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Next Follow-up Date</label>
+            <input type="date" id="call_next_followup">
+          </div>
+          <div class="form-group">
+            <label>Assigned Member</label>
+            <select id="call_member"></select>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="callModalOverlay">Cancel</button>
+      <button class="btn btn-primary" id="saveCallBtn"><i class="fa-solid fa-check"></i> Save Call</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Note Modal -->
+<div class="modal-overlay" id="noteModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Note</h3>
+      <button class="close-x" data-close="noteModalOverlay"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="note_contact_id">
+      <div class="form-group full">
+        <label>Note</label>
+        <textarea id="note_content" placeholder="Write a note…" style="min-height:100px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="noteModalOverlay">Cancel</button>
+      <button class="btn btn-primary" id="saveNoteBtn"><i class="fa-solid fa-check"></i> Save Note</button>
+    </div>
+  </div>
+</div>
+
+<!-- Account Modal -->
+<div class="modal-overlay" id="memberModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Account</h3>
+      <button class="close-x" data-close="memberModalOverlay"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="memberSelectList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="accountLogoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR Call Modal -->
+<div class="modal-overlay" id="qrModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Scan to Call</h3>
+      <button class="close-x" data-close="qrModalOverlay"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="qr-wrap">
+        <div class="qr-box" id="qrCanvasHolder"></div>
+        <div class="qr-caption">Scan with any phone camera or QR scanner to open the dialer.</div>
+        <div class="qr-number" id="qrNumberLabel" aria-live="polite"></div>
+        <div class="qr-caption">Confirm the number above before placing the call.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Dialog -->
+<div class="modal-overlay" id="confirmModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="confirmTitle">Are you sure?</h3>
+      <button class="close-x" data-close="confirmModalOverlay"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-body" id="confirmBody">This action cannot be undone.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="confirmModalOverlay">Cancel</button>
+      <button class="btn btn-danger" id="confirmActionBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   CALLDESK - COLD CALLING CRM
+   Single-file vanilla JS application.
+   Data layer supports two modes:
+     - DEMO MODE: data lives in localStorage, seeded with sample records.
+     - LIVE MODE: data is read/written through a Google Apps Script Web App.
+   ========================================================================= */
+
+/* ----------------------------- CONSTANTS -------------------------------- */
+
+const STATUS_LABELS = {
+  new: "New",
+  not_called: "Not Called",
+  called: "Called",
+  interested: "Interested",
+  not_interested: "Not Interested",
+  follow_up: "Follow-up",
+  converted: "Converted"
+};
+
+const OUTCOME_TO_STATUS = {
+  "No Answer": "called",
+  "Busy": "called",
+  "Call Back Later": "follow_up",
+  "Interested": "interested",
+  "Not Interested": "not_interested",
+  "Wrong Number": "not_interested",
+  "Converted": "converted"
+};
+
+const APP_VERSION = "1.0.0";
+
+const LS_KEYS = {
+  contacts: "calldesk_contacts",
+  calls: "calldesk_calls",
+  notes: "calldesk_notes",
+  members: "calldesk_members",
+  settings: "calldesk_settings",
+  currentMember: "calldesk_current_member",
+  auth: "calldesk_auth_session",
+  theme: "calldesk_theme"
+};
+
+const DEFAULT_SETTINGS = {
+  apiUrl: "",
+  demoMode: true,
+  autoSyncSeconds: 20
+};
+
+const DEFAULT_THEME = {
+  mode: "light",      // light | dark
+  color: "#2563EB"
+};
+
+const THEME_PRESETS = ["#2563EB", "#7C3AED", "#DC2626", "#16A34A", "#D97706", "#0EA5E9", "#DB2777", "#334155"];
+
+/* The single authorized account for this deployment. */
+const APP_USER = { username: "Pompi Bhomik", password: "5055" };
+const APP_MEMBER = { member_id: "mem_owner", member_name: "Pompi Bhomik", email: "CallDesk user", role: "Owner", active: true };
+
+/* ----------------------------- STATE ------------------------------------ */
+
+const state = {
+  contacts: [],
+  calls: [],
+  notes: [],
+  members: [APP_MEMBER],
+  settings: { ...DEFAULT_SETTINGS },
+  theme: { ...DEFAULT_THEME },
+  currentMemberId: APP_MEMBER.member_id,
+  view: "dashboard",
+  filterStatus: "all",
+  searchQuery: "",
+  sortBy: "recent_added",
+  syncStatus: "idle", // idle | syncing | error | offline
+  lastSyncAt: null,
+  activeDetailContactId: null,
+  activeDetailTab: "overview",
+  deferredInstallPrompt: null
+};
+
+/* ----------------------------- UTILITIES --------------------------------- */
+
+function uid(prefix) {
+  return prefix + "_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function initials(name) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
+}
+
+function formatDate(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function formatDateTime(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function isOverdue(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return d < today;
+}
+
+function isToday(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const today = new Date();
+  return d.toDateString() === today.toDateString();
+}
+
+function debounce(fn, ms) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+}
+
+function el(html) {
+  const t = document.createElement("template");
+  t.innerHTML = html.trim();
+  return t.content.firstElementChild;
+}
+
+/* ----------------------------- TOASTS ------------------------------------ */
+
+function toast(message, type = "info", ms = 3800) {
+  const stack = document.getElementById("toastStack");
+  const icon = type === "success" ? "fa-circle-check" : type === "error" ? "fa-circle-exclamation" : "fa-circle-info";
+  const node = el(`<div class="toast ${type}"><i class="fa-solid ${icon}"></i><span></span></div>`);
+  node.querySelector("span").textContent = message;
+  stack.appendChild(node);
+  setTimeout(() => {
+    node.style.opacity = "0";
+    node.style.transition = "opacity .2s";
+    setTimeout(() => node.remove(), 200);
+  }, ms);
+}
+
+/* ----------------------------- STORAGE (DEMO MODE) ------------------------ */
+
+function lsGet(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function lsSet(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.error("localStorage write failed", e);
+  }
+}
+
+/* ----------------------------- LOCAL DATA INIT ----------------------------- */
+
+const LEAD_SOURCES = ["Website", "Referral", "Cold List", "LinkedIn", "Event", "Other"];
+const STATUSES = Object.keys(STATUS_LABELS);
+
+/* Ensures local storage has empty, clean collections on first run. No sample
+   records are generated; the workspace starts blank and is filled only by
+   data the user adds, imports from Excel, or syncs from a connected sheet. */
+function ensureLocalData() {
+  if (lsGet(LS_KEYS.contacts, null) === null) lsSet(LS_KEYS.contacts, []);
+  if (lsGet(LS_KEYS.calls, null) === null) lsSet(LS_KEYS.calls, []);
+  if (lsGet(LS_KEYS.notes, null) === null) lsSet(LS_KEYS.notes, []);
+  lsSet(LS_KEYS.members, [APP_MEMBER]);
+}
+
+/* ----------------------------- DATA LAYER --------------------------------
+   Every function below returns data the same shape whether we're in demo
+   mode (localStorage) or live mode (Google Apps Script Web App).
+   This is the single seam to swap backends.
+----------------------------------------------------------------------- */
+
+const Api = {
+
+  async getContacts() {
+    if (state.settings.demoMode) {
+      return lsGet(LS_KEYS.contacts, []);
+    }
+    const res = await gsRequest("GET_CONTACTS");
+    return res.data || [];
+  },
+
+  async getCallHistory(contactId) {
+    if (state.settings.demoMode) {
+      return lsGet(LS_KEYS.calls, []).filter(c => c.contact_id === contactId)
+        .sort((a, b) => (b.call_date + b.call_time).localeCompare(a.call_date + a.call_time));
+    }
+    const res = await gsRequest("GET_CALL_HISTORY", { contact_id: contactId });
+    return res.data || [];
+  },
+
+  async getNotes(contactId) {
+    if (state.settings.demoMode) {
+      return lsGet(LS_KEYS.notes, []).filter(n => n.contact_id === contactId)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+    const res = await gsRequest("GET_NOTES", { contact_id: contactId });
+    return res.data || [];
+  },
+
+  async getMembers() {
+    if (state.settings.demoMode) {
+      return lsGet(LS_KEYS.members, [APP_MEMBER]);
+    }
+    const res = await gsRequest("GET_MEMBERS");
+    return res.data || [];
+  },
+
+  async addContact(payload) {
+    const record = {
+      contact_id: uid("c"),
+      ...payload,
+      created_by: state.currentMemberId,
+      created_at: nowIso(),
+      updated_by: state.currentMemberId,
+      updated_at: nowIso()
+    };
+    if (state.settings.demoMode) {
+      const all = lsGet(LS_KEYS.contacts, []);
+      all.unshift(record);
+      lsSet(LS_KEYS.contacts, all);
+      return record;
+    }
+    const res = await gsRequest("ADD_CONTACT", record);
+    return res.data;
+  },
+
+  async updateContact(contactId, payload) {
+    const updates = { ...payload, updated_by: state.currentMemberId, updated_at: nowIso() };
+    if (state.settings.demoMode) {
+      const all = lsGet(LS_KEYS.contacts, []);
+      const idx = all.findIndex(c => c.contact_id === contactId);
+      if (idx === -1) throw new Error("Contact not found");
+      all[idx] = { ...all[idx], ...updates };
+      lsSet(LS_KEYS.contacts, all);
+      return all[idx];
+    }
+    const res = await gsRequest("UPDATE_CONTACT", { contact_id: contactId, ...updates });
+    return res.data;
+  },
+
+  async deleteContact(contactId) {
+    if (state.settings.demoMode) {
+      const all = lsGet(LS_KEYS.contacts, []).filter(c => c.contact_id !== contactId);
+      lsSet(LS_KEYS.contacts, all);
+      return true;
+    }
+    await gsRequest("DELETE_CONTACT", { contact_id: contactId });
+    return true;
+  },
+
+  async addCall(payload) {
+    const record = { call_id: uid("call"), ...payload };
+    if (state.settings.demoMode) {
+      const all = lsGet(LS_KEYS.calls, []);
+      all.unshift(record);
+      lsSet(LS_KEYS.calls, all);
+      return record;
+    }
+    const res = await gsRequest("ADD_CALL", record);
+    return res.data;
+  },
+
+  async addNote(payload) {
+    const record = { note_id: uid("note"), created_at: nowIso(), updated_at: nowIso(), ...payload };
+    if (state.settings.demoMode) {
+      const all = lsGet(LS_KEYS.notes, []);
+      all.unshift(record);
+      lsSet(LS_KEYS.notes, all);
+      return record;
+    }
+    const res = await gsRequest("ADD_NOTE", record);
+    return res.data;
+  }
+};
+
+/* ----------------------------- GOOGLE SHEETS (LIVE MODE) ------------------
+   Apps Script Web Apps are reached with a plain fetch POST of JSON.
+   LIMITATIONS (documented, not hidden):
+   - The Apps Script deployment must be set to "Anyone" access for this
+     no-auth demo pattern to work, which is NOT secure for production data.
+   - Apps Script's CORS behavior varies; some deployments return
+     text/plain responses that must still be JSON-parsed client-side.
+   - There is no guarantee of low latency; Apps Script cold starts can
+     take a few seconds.
+   - This pattern provides no real authentication or authorization.
+----------------------------------------------------------------------- */
+
+async function gsRequest(action, payload) {
+  const url = state.settings.apiUrl;
+  if (!url) throw new Error("No Google Apps Script URL configured.");
+  setSyncStatus("syncing");
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight on most Apps Script deployments
+      body: JSON.stringify({ action, payload: payload || {} })
+    });
+    if (!res.ok) throw new Error("Server responded with status " + res.status);
+    const text = await res.text();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch (e) {
+      throw new Error("Apps Script did not return valid JSON. Check your deployment.");
+    }
+    if (json.error) throw new Error(json.error);
+    setSyncStatus("idle");
+    state.lastSyncAt = new Date();
+    return json;
+  } catch (err) {
+    setSyncStatus("error");
+    throw err;
+  }
+}
+
+async function testConnection() {
+  try {
+    await gsRequest("GET_DASHBOARD_STATS");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e.message };
+  }
+}
+
+/* ----------------------------- SYNC STATUS -------------------------------- */
+
+function setSyncStatus(status) {
+  state.syncStatus = status;
+  const topDot = document.getElementById("topSyncDot");
+  const label = document.getElementById("syncLabel");
+  if (!topDot || !label) return;
+  topDot.classList.remove("offline", "syncing");
+  if (state.settings.demoMode) {
+    topDot.classList.add("offline");
+    label.textContent = "Local data";
+    return;
+  }
+  if (status === "syncing") {
+    topDot.classList.add("syncing");
+    label.textContent = "Syncing";
+  } else if (status === "error") {
+    topDot.classList.add("offline");
+    label.textContent = "Sync error";
+  } else {
+    label.textContent = state.lastSyncAt ? "Synced " + formatDateTime(state.lastSyncAt.toISOString()) : "Live";
+  }
+}
+
+let autoSyncTimer = null;
+function restartAutoSync() {
+  if (autoSyncTimer) clearInterval(autoSyncTimer);
+  if (state.settings.demoMode) return;
+  const seconds = Math.min(Math.max(state.settings.autoSyncSeconds || 20, 15), 30);
+  autoSyncTimer = setInterval(() => {
+    loadAllData(true);
+  }, seconds * 1000);
+}
+
+/* ----------------------------- BOOTSTRAP ---------------------------------- */
+
+async function init() {
+  state.settings = { ...DEFAULT_SETTINGS, ...lsGet(LS_KEYS.settings, {}) };
+  state.theme = { ...DEFAULT_THEME, ...lsGet(LS_KEYS.theme, {}) };
+  applyTheme();
+
+  ensureLocalData();
+
+  state.members = await Api.getMembers().catch(() => [APP_MEMBER]);
+  if (!state.members || !state.members.length) state.members = [APP_MEMBER];
+  state.currentMemberId = APP_MEMBER.member_id;
+  lsSet(LS_KEYS.currentMember, state.currentMemberId);
+
+  bindGlobalEvents();
+  populateMemberSelects();
+  renderMemberCard();
+  setSyncStatus("idle");
+  restartAutoSync();
+  setupInstallPrompt();
+
+  await loadAllData();
+  setView("dashboard");
+}
+
+async function loadAllData(silent) {
+  try {
+    if (!silent) setSyncStatus("syncing");
+    const [contacts, members] = await Promise.all([Api.getContacts(), Api.getMembers()]);
+    state.contacts = contacts;
+    state.members = members && members.length ? members : state.members;
+    populateMemberSelects();
+    setSyncStatus("idle");
+    render();
+  } catch (err) {
+    setSyncStatus("error");
+    if (!silent) toast("Could not sync: " + err.message, "error");
+  }
+}
+
+/* ----------------------------- MEMBER HANDLING ---------------------------- */
+
+function getMember(id) {
+  return state.members.find(m => m.member_id === id);
+}
+
+function populateMemberSelects() {
+  const selects = [document.getElementById("f_assigned_to"), document.getElementById("call_member")];
+  selects.forEach(sel => {
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = state.members.map(m => `<option value="${escapeHtml(m.member_id)}">${escapeHtml(m.member_name)}</option>`).join("");
+    if (prev) sel.value = prev;
+  });
+}
+
+function renderMemberCard() {
+  const m = getMember(state.currentMemberId) || APP_MEMBER;
+  document.getElementById("memberAvatar").textContent = initials(m.member_name);
+  document.getElementById("memberNameLabel").textContent = m.member_name;
+  document.getElementById("memberEmailLabel").textContent = m.email;
+}
+
+function renderMemberSelectList() {
+  const wrap = document.getElementById("memberSelectList");
+  const m = getMember(state.currentMemberId) || APP_MEMBER;
+  wrap.innerHTML = `
+    <div class="nav-item" style="margin-bottom:6px;cursor:default;">
+      <div class="member-avatar" style="width:34px;height:34px;font-size:13px;">${escapeHtml(initials(m.member_name))}</div>
+      <div style="flex:1;text-align:left;">
+        <div style="font-weight:600;font-size:14px;">${escapeHtml(m.member_name)}</div>
+        <div style="font-size:12px;color:var(--text-secondary);">${escapeHtml(m.role || "Owner")} - Only account on this workspace</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ----------------------------- DERIVED DATA -------------------------------- */
+
+function enrichContact(c) {
+  return {
+    ...c,
+    member: getMember(c.assigned_to)
+  };
+}
+
+function getFilteredContacts() {
+  let list = state.contacts.map(enrichContact);
+
+  // View-based filter
+  switch (state.view) {
+    case "mine":
+      list = list.filter(c => c.assigned_to === state.currentMemberId);
+      break;
+    case "followups":
+      list = list.filter(c => c.next_followup);
+      break;
+    case "called":
+      list = list.filter(c => c.status === "called");
+      break;
+    case "not_called":
+      list = list.filter(c => c.status === "not_called" || c.status === "new");
+      break;
+    case "interested":
+      list = list.filter(c => c.status === "interested");
+      break;
+    case "not_interested":
+      list = list.filter(c => c.status === "not_interested");
+      break;
+    default:
+      break;
+  }
+
+  // Chip filter (status, on top of the "all"/"mine" views)
+  if (state.filterStatus !== "all") {
+    list = list.filter(c => c.status === state.filterStatus);
+  }
+
+  // Search
+  if (state.searchQuery.trim()) {
+    const q = state.searchQuery.trim().toLowerCase();
+    list = list.filter(c =>
+      (c.full_name || "").toLowerCase().includes(q) ||
+      (c.phone || "").toLowerCase().includes(q) ||
+      (c.company || "").toLowerCase().includes(q) ||
+      (c.email || "").toLowerCase().includes(q)
+    );
+  }
+
+  // Sort
+  list.sort((a, b) => {
+    switch (state.sortBy) {
+      case "name": return (a.full_name || "").localeCompare(b.full_name || "");
+      case "recent_updated": return new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
+      case "followup_date": return new Date(a.next_followup || "9999-01-01") - new Date(b.next_followup || "9999-01-01");
+      case "status": return (a.status || "").localeCompare(b.status || "");
+      default: return new Date(b.created_at || 0) - new Date(a.created_at || 0); // recent_added
+    }
+  });
+
+  return list;
+}
+
+function getStats() {
+  const total = state.contacts.length;
+  const completed = state.contacts.filter(c => ["called", "interested", "not_interested", "follow_up", "converted"].includes(c.status)).length;
+  const interested = state.contacts.filter(c => c.status === "interested" || c.status === "converted").length;
+  const pending = state.contacts.filter(c => c.next_followup && !isOverdue(c.next_followup) || (c.next_followup && isOverdue(c.next_followup))).length;
+  return { total, completed, interested, pending };
+}
+
+/* ----------------------------- VIEW / ROUTING ------------------------------ */
+
+const VIEW_META = {
+  dashboard: { title: "Dashboard", sub: "Overview of your cold calling pipeline" },
+  all: { title: "All Contacts", sub: "Every contact in the CRM" },
+  mine: { title: "My Leads", sub: "Contacts assigned to you" },
+  followups: { title: "Follow-ups", sub: "Contacts with a scheduled follow-up date" },
+  called: { title: "Called", sub: "Contacts that have been called" },
+  not_called: { title: "Not Called", sub: "Contacts awaiting a first call" },
+  interested: { title: "Interested", sub: "Leads that showed interest" },
+  not_interested: { title: "Not Interested", sub: "Leads that declined" },
+  importexport: { title: "Import / Export", sub: "Move data in and out as Excel files" },
+  settings: { title: "Settings", sub: "Connection, theme and workspace preferences" }
+};
+
+function setView(view) {
+  state.view = view;
+  state.filterStatus = "all";
+  document.querySelectorAll(".nav-item[data-view]").forEach(n => n.classList.toggle("active", n.getAttribute("data-view") === view));
+  const meta = VIEW_META[view] || VIEW_META.dashboard;
+  document.getElementById("pageTitle").textContent = meta.title;
+  document.getElementById("pageSubtitle").textContent = meta.sub;
+  closeSidebarMobile();
+  render();
+}
+
+function render() {
+  updateNavCounts();
+  if (state.view === "settings") {
+    renderSettingsView();
+  } else if (state.view === "importexport") {
+    renderImportExportView();
+  } else {
+    renderListView();
+  }
+}
+
+function updateNavCounts() {
+  const c = state.contacts;
+  document.getElementById("countAll").textContent = c.length;
+  document.getElementById("countMine").textContent = c.filter(x => x.assigned_to === state.currentMemberId).length;
+  document.getElementById("countFollowups").textContent = c.filter(x => x.next_followup).length;
+  document.getElementById("countCalled").textContent = c.filter(x => x.status === "called").length;
+  document.getElementById("countNotCalled").textContent = c.filter(x => x.status === "not_called" || x.status === "new").length;
+  document.getElementById("countInterested").textContent = c.filter(x => x.status === "interested").length;
+  document.getElementById("countNotInterested").textContent = c.filter(x => x.status === "not_interested").length;
+}
+
+/* ----------------------------- RENDER: LIST VIEW --------------------------- */
+
+function renderListView() {
+  const content = document.getElementById("content");
+  const stats = getStats();
+  const list = getFilteredContacts();
+
+  content.innerHTML = `
+    ${state.view === "dashboard" ? renderStatsGrid(stats) : ""}
+    <div class="toolbar">
+      <div class="filter-chips" id="filterChips">
+        ${["all", ...Object.keys(STATUS_LABELS)].map(s => `
+          <button class="chip ${state.filterStatus === s ? "active" : ""}" data-status="${s}">
+            ${s === "all" ? "All" : STATUS_LABELS[s]}
+          </button>`).join("")}
+      </div>
+      <div class="toolbar-right">
+        <select class="select-input" id="sortSelect">
+          <option value="recent_added">Recently Added</option>
+          <option value="recent_updated">Recently Updated</option>
+          <option value="name">Name</option>
+          <option value="followup_date">Follow-up Date</option>
+          <option value="status">Call Status</option>
+        </select>
+      </div>
+    </div>
+
+    ${list.length === 0 ? renderEmptyState() : `
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Contact</th><th>Company</th><th>Status</th><th>Assigned</th>
+            <th>Last Called</th><th>Next Follow-up</th><th></th>
+          </tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="card-list" id="cardList"></div>
+    `}
+  `;
+
+  document.getElementById("sortSelect").value = state.sortBy;
+
+  if (list.length) {
+    renderTableRows(list);
+    renderMobileCards(list);
+  }
+
+  // Bind chip filters
+  content.querySelectorAll("#filterChips .chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      state.filterStatus = chip.getAttribute("data-status");
+      renderListView();
+    });
+  });
+  const sortSelect = document.getElementById("sortSelect");
+  if (sortSelect) sortSelect.addEventListener("change", () => { state.sortBy = sortSelect.value; renderListView(); });
+}
+
+function renderStatsGrid(stats) {
+  return `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-top"><div class="stat-icon blue"><i class="fa-solid fa-address-book"></i></div></div>
+        <div class="stat-value">${stats.total}</div>
+        <div class="stat-label">Total Contacts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top"><div class="stat-icon green"><i class="fa-solid fa-phone"></i></div></div>
+        <div class="stat-value">${stats.completed}</div>
+        <div class="stat-label">Calls Completed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top"><div class="stat-icon purple"><i class="fa-solid fa-thumbs-up"></i></div></div>
+        <div class="stat-value">${stats.interested}</div>
+        <div class="stat-label">Interested Leads</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top"><div class="stat-icon amber"><i class="fa-solid fa-calendar-clock"></i></div></div>
+        <div class="stat-value">${stats.pending}</div>
+        <div class="stat-label">Follow-ups Pending</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderEmptyState() {
+  return `
+    <div class="empty-state">
+      <i class="fa-solid fa-inbox"></i>
+      <h3>No contacts found</h3>
+      <p>Try a different filter or search, or add your first contact.</p>
+      <button class="btn btn-primary" id="emptyAddBtn"><i class="fa-solid fa-plus"></i> Add Contact</button>
+    </div>
+  `;
+}
+
+function statusBadge(status) {
+  const safe = status && STATUS_LABELS[status] ? status : "new";
+  return `<span class="badge status-${safe}"><span class="badge-dot"></span>${STATUS_LABELS[safe]}</span>`;
+}
+
+function renderTableRows(list) {
+  const tbody = document.getElementById("tableBody");
+  if (!tbody) return;
+  tbody.innerHTML = list.map(c => `
+    <tr data-id="${escapeHtml(c.contact_id)}">
+      <td>
+        <div class="name-cell">
+          <div class="avatar-sm">${escapeHtml(initials(c.full_name))}</div>
+          <div>
+            <div class="cell-name">${escapeHtml(c.full_name)}</div>
+            <div class="cell-sub">${escapeHtml(c.phone)}</div>
+          </div>
+        </div>
+      </td>
+      <td>${escapeHtml(c.company || "-")}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td>${escapeHtml(c.member ? c.member.member_name : "Unassigned")}</td>
+      <td>${lastCalledLabel(c.contact_id)}</td>
+      <td>${nextFollowupLabel(c.next_followup)}</td>
+      <td>
+        <div class="row-actions">
+          <button class="icon-btn btn-qr" data-id="${escapeHtml(c.contact_id)}" title="Scan to call"><i class="fa-solid fa-qrcode"></i></button>
+          <button class="icon-btn btn-call" data-id="${escapeHtml(c.contact_id)}" title="Log call"><i class="fa-solid fa-phone"></i></button>
+          <button class="icon-btn btn-note" data-id="${escapeHtml(c.contact_id)}" title="Add note"><i class="fa-solid fa-note-sticky"></i></button>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+
+  tbody.querySelectorAll("tr").forEach(row => {
+    row.addEventListener("click", (e) => {
+      if (e.target.closest(".btn-call") || e.target.closest(".btn-note") || e.target.closest(".btn-qr")) return;
+      openDetailModal(row.getAttribute("data-id"));
+    });
+  });
+  tbody.querySelectorAll(".btn-call").forEach(btn => btn.addEventListener("click", (e) => { e.stopPropagation(); openCallModal(btn.getAttribute("data-id")); }));
+  tbody.querySelectorAll(".btn-note").forEach(btn => btn.addEventListener("click", (e) => { e.stopPropagation(); openNoteModal(btn.getAttribute("data-id")); }));
+  tbody.querySelectorAll(".btn-qr").forEach(btn => btn.addEventListener("click", (e) => { e.stopPropagation(); openQrModal(btn.getAttribute("data-id")); }));
+}
+
+function lastCalledLabel(contactId) {
+  // computed lazily from cached call list when available, else dash
+  const cached = state._callsCache && state._callsCache[contactId];
+  if (cached && cached.length) return formatDate(cached[0].call_date);
+  return "-";
+}
+
+function nextFollowupLabel(dateStr) {
+  if (!dateStr) return `<span class="cell-sub">-</span>`;
+  const overdue = isOverdue(dateStr);
+  return `<span class="${overdue ? "overdue" : ""}">${formatDate(dateStr)}${overdue ? " (overdue)" : isToday(dateStr) ? " (today)" : ""}</span>`;
+}
+
+function renderMobileCards(list) {
+  const wrap = document.getElementById("cardList");
+  if (!wrap) return;
+  wrap.innerHTML = list.map(c => `
+    <div class="contact-card" data-id="${escapeHtml(c.contact_id)}">
+      <div class="contact-card-top">
+        <div class="name-cell">
+          <div class="avatar-sm">${escapeHtml(initials(c.full_name))}</div>
+          <div>
+            <div class="cell-name">${escapeHtml(c.full_name)}</div>
+            <div class="cell-sub">${escapeHtml(c.company || "")}</div>
+          </div>
+        </div>
+        ${statusBadge(c.status)}
+      </div>
+      <div class="contact-card-meta">
+        <span><i class="fa-solid fa-phone"></i>${escapeHtml(c.phone)}</span>
+        <span><i class="fa-solid fa-user"></i>${escapeHtml(c.member ? c.member.member_name : "Unassigned")}</span>
+        ${c.next_followup ? `<span><i class="fa-solid fa-calendar"></i>Follow-up: ${nextFollowupLabel(c.next_followup)}</span>` : ""}
+      </div>
+      <div class="contact-card-actions">
+        <button class="btn btn-sm btn-call" data-id="${escapeHtml(c.contact_id)}"><i class="fa-solid fa-phone"></i> Call</button>
+        <button class="btn btn-sm btn-view" data-id="${escapeHtml(c.contact_id)}"><i class="fa-solid fa-eye"></i> View</button>
+      </div>
+    </div>
+  `).join("");
+
+  wrap.querySelectorAll(".btn-call").forEach(btn => btn.addEventListener("click", (e) => { e.stopPropagation(); openCallModal(btn.getAttribute("data-id")); }));
+  wrap.querySelectorAll(".btn-view").forEach(btn => btn.addEventListener("click", (e) => { e.stopPropagation(); openDetailModal(btn.getAttribute("data-id")); }));
+}
+
+/* ----------------------------- MODALS: ADD / EDIT CONTACT ------------------ */
+
+function openAddContactModal() {
+  document.getElementById("contactModalTitle").textContent = "Add Contact";
+  document.getElementById("contactForm").reset();
+  document.getElementById("f_contact_id").value = "";
+  document.getElementById("f_status").value = "new";
+  document.getElementById("f_assigned_to").value = state.currentMemberId || "";
+  clearFormErrors("contactForm");
+  openModal("contactModalOverlay");
+}
+
+function openEditContactModal(contactId) {
+  const c = state.contacts.find(x => x.contact_id === contactId);
+  if (!c) return;
+  document.getElementById("contactModalTitle").textContent = "Edit Contact";
+  document.getElementById("f_contact_id").value = c.contact_id;
+  document.getElementById("f_full_name").value = c.full_name || "";
+  document.getElementById("f_phone").value = c.phone || "";
+  document.getElementById("f_email").value = c.email || "";
+  document.getElementById("f_company").value = c.company || "";
+  document.getElementById("f_location").value = c.location || "";
+  document.getElementById("f_lead_source").value = c.lead_source || "Website";
+  document.getElementById("f_assigned_to").value = c.assigned_to || state.currentMemberId;
+  document.getElementById("f_status").value = c.status || "new";
+  document.getElementById("f_next_followup").value = c.next_followup || "";
+  document.getElementById("f_notes").value = c.notes || "";
+  clearFormErrors("contactForm");
+  closeModal("detailModalOverlay");
+  openModal("contactModalOverlay");
+}
+
+function clearFormErrors(formId) {
+  document.getElementById(formId).querySelectorAll(".form-group").forEach(g => g.classList.remove("error"));
+}
+
+async function handleSaveContact() {
+  const name = document.getElementById("f_full_name").value.trim();
+  const phone = document.getElementById("f_phone").value.trim();
+  clearFormErrors("contactForm");
+
+  let valid = true;
+  if (!name) { document.getElementById("g_full_name").classList.add("error"); valid = false; }
+  if (!phone || phone.replace(/\D/g, "").length < 6) { document.getElementById("g_phone").classList.add("error"); valid = false; }
+  if (!valid) return;
+
+  const payload = {
+    full_name: name,
+    phone: phone,
+    email: document.getElementById("f_email").value.trim(),
+    company: document.getElementById("f_company").value.trim(),
+    location: document.getElementById("f_location").value.trim(),
+    lead_source: document.getElementById("f_lead_source").value,
+    assigned_to: document.getElementById("f_assigned_to").value,
+    status: document.getElementById("f_status").value,
+    notes: document.getElementById("f_notes").value.trim(),
+    next_followup: document.getElementById("f_next_followup").value
+  };
+
+  const existingId = document.getElementById("f_contact_id").value;
+  const saveBtn = document.getElementById("saveContactBtn");
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = `<span class="spinner"></span> Saving…`;
+
+  try {
+    if (existingId) {
+      await Api.updateContact(existingId, payload);
+      toast("Contact updated", "success");
+    } else {
+      await Api.addContact(payload);
+      toast("Contact added", "success");
+    }
+    closeModal("contactModalOverlay");
+    await loadAllData(true);
+  } catch (err) {
+    toast("Could not save contact: " + err.message, "error");
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = `<i class="fa-solid fa-check"></i> Save Contact`;
+  }
+}
+
+/* ----------------------------- MODAL: CONTACT DETAIL ------------------------ */
+
+async function openDetailModal(contactId) {
+  state.activeDetailContactId = contactId;
+  state.activeDetailTab = "overview";
+  const c = state.contacts.find(x => x.contact_id === contactId);
+  if (!c) return;
+
+  document.getElementById("detailModalBody").innerHTML = `<div class="loading-row"><span class="spinner dark"></span> Loading…</div>`;
+  openModal("detailModalOverlay");
+
+  const [calls, notes] = await Promise.all([Api.getCallHistory(contactId), Api.getNotes(contactId)]);
+  state._callsCache = state._callsCache || {};
+  state._callsCache[contactId] = calls;
+
+  renderDetailModal(c, calls, notes);
+}
+
+function renderDetailModal(c, calls, notes) {
+  const m = getMember(c.assigned_to);
+  const body = document.getElementById("detailModalBody");
+  body.innerHTML = `
+    <div class="detail-header">
+      <div class="detail-avatar">${escapeHtml(initials(c.full_name))}</div>
+      <div>
+        <div class="detail-name">${escapeHtml(c.full_name)}</div>
+        <div class="detail-company">${escapeHtml(c.company || "No company")} ${statusBadge(c.status)}</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="icon-btn qr-desktop-only" id="detailQrBtn" title="Scan to call"><i class="fa-solid fa-qrcode"></i></button>
+        <a class="btn btn-primary btn-sm" href="tel:${escapeHtml((c.phone || "").replace(/\s+/g, ""))}" id="detailCallLink"><i class="fa-solid fa-phone"></i> Call</a>
+      </div>
+    </div>
+
+    <div class="detail-grid">
+      <div class="detail-field"><label>Phone</label><div>${escapeHtml(c.phone || "-")}</div></div>
+      <div class="detail-field"><label>Email</label><div>${escapeHtml(c.email || "-")}</div></div>
+      <div class="detail-field"><label>Location</label><div>${escapeHtml(c.location || "-")}</div></div>
+      <div class="detail-field"><label>Lead Source</label><div>${escapeHtml(c.lead_source || "-")}</div></div>
+      <div class="detail-field"><label>Assigned Member</label><div>${escapeHtml(m ? m.member_name : "Unassigned")}</div></div>
+      <div class="detail-field"><label>Next Follow-up</label><div>${nextFollowupLabel(c.next_followup)}</div></div>
+      <div class="detail-field"><label>Created</label><div>${formatDateTime(c.created_at)}</div></div>
+      <div class="detail-field"><label>Last Updated</label><div>${formatDateTime(c.updated_at)}</div></div>
+    </div>
+
+    <div class="detail-tabs">
+      <button class="detail-tab active" data-tab="overview">Overview</button>
+      <button class="detail-tab" data-tab="calls">Call History (${calls.length})</button>
+      <button class="detail-tab" data-tab="notes">Notes (${notes.length})</button>
+    </div>
+
+    <div class="tab-panel active" data-panel="overview">
+      ${c.notes ? `<p style="font-size:13.5px;color:var(--text);line-height:1.5;">${escapeHtml(c.notes)}</p>` : `<p style="font-size:13px;color:var(--text-secondary);">No initial notes recorded for this contact.</p>`}
+    </div>
+
+    <div class="tab-panel" data-panel="calls">
+      ${calls.length === 0 ? `<p style="font-size:13px;color:var(--text-secondary);">No calls logged yet.</p>` : calls.map(call => `
+        <div class="timeline-item">
+          <div class="timeline-icon outcome-${(OUTCOME_TO_STATUS[call.outcome] || "called")}"><i class="fa-solid fa-phone"></i></div>
+          <div class="timeline-main">
+            <div class="timeline-top">
+              <div class="timeline-title">${escapeHtml(call.outcome)}</div>
+              <div class="timeline-time">${escapeHtml(call.call_date)} ${escapeHtml(call.call_time || "")}</div>
+            </div>
+            ${call.call_notes ? `<div class="timeline-note">${escapeHtml(call.call_notes)}</div>` : ""}
+            <div class="timeline-by">by ${escapeHtml(getMember(call.member)?.member_name || "Unknown")}${call.next_followup ? " - next follow-up " + escapeHtml(formatDate(call.next_followup)) : ""}</div>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+
+    <div class="tab-panel" data-panel="notes">
+      <button class="btn btn-sm" id="detailAddNoteBtn" style="margin-bottom:12px;"><i class="fa-solid fa-plus"></i> Add Note</button>
+      ${notes.length === 0 ? `<p style="font-size:13px;color:var(--text-secondary);">No notes yet.</p>` : notes.map(n => `
+        <div class="note-item">
+          <div class="note-top"><span class="note-author">${escapeHtml(getMember(n.member)?.member_name || "Unknown")}</span><span>${formatDateTime(n.created_at)}</span></div>
+          <div class="note-content">${escapeHtml(n.note_content)}</div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+
+  body.querySelectorAll(".detail-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      body.querySelectorAll(".detail-tab").forEach(t => t.classList.remove("active"));
+      body.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+      tab.classList.add("active");
+      body.querySelector(`.tab-panel[data-panel="${tab.getAttribute("data-tab")}"]`).classList.add("active");
+    });
+  });
+
+  document.getElementById("detailCallLink").addEventListener("click", () => {
+    // Opening the dialer; prompt for outcome logging right after.
+    setTimeout(() => openCallModal(c.contact_id), 400);
+  });
+
+  const detailQrBtn = document.getElementById("detailQrBtn");
+  if (detailQrBtn) detailQrBtn.addEventListener("click", () => openQrModal(c.contact_id));
+
+  const addNoteBtn = body.querySelector("#detailAddNoteBtn");
+  if (addNoteBtn) addNoteBtn.addEventListener("click", () => openNoteModal(c.contact_id));
+
+  document.getElementById("detailEditBtn").onclick = () => openEditContactModal(c.contact_id);
+  document.getElementById("detailDeleteBtn").onclick = () => confirmDeleteContact(c.contact_id, c.full_name);
+}
+
+function confirmDeleteContact(contactId, name) {
+  openConfirm(
+    "Delete contact?",
+    `This will permanently delete ${name || "this contact"} and cannot be undone.`,
+    async () => {
+      try {
+        await Api.deleteContact(contactId);
+        toast("Contact deleted", "success");
+        closeModal("detailModalOverlay");
+        closeModal("confirmModalOverlay");
+        await loadAllData(true);
+      } catch (err) {
+        toast("Could not delete: " + err.message, "error");
+      }
+    }
+  );
+}
+
+/* ----------------------------- MODAL: CALL OUTCOME --------------------------- */
+
+function openCallModal(contactId) {
+  document.getElementById("call_contact_id").value = contactId;
+  document.getElementById("call_outcome").value = "No Answer";
+  document.getElementById("call_notes").value = "";
+  document.getElementById("call_next_followup").value = "";
+  document.getElementById("call_member").value = state.currentMemberId || "";
+  openModal("callModalOverlay");
+
+  // If opened from a row (not via tel: link), still open the dialer.
+  const c = state.contacts.find(x => x.contact_id === contactId);
+  if (c && c.phone) {
+    const telLink = document.createElement("a");
+    telLink.href = "tel:" + c.phone.replace(/\s+/g, "");
+    telLink.click();
+  }
+}
+
+async function handleSaveCall() {
+  const contactId = document.getElementById("call_contact_id").value;
+  const outcome = document.getElementById("call_outcome").value;
+  const notes = document.getElementById("call_notes").value.trim();
+  const nextFollowup = document.getElementById("call_next_followup").value;
+  const member = document.getElementById("call_member").value;
+
+  const now = new Date();
+  const payload = {
+    contact_id: contactId,
+    member: member,
+    call_date: now.toISOString().slice(0, 10),
+    call_time: now.toTimeString().slice(0, 5),
+    outcome,
+    call_notes: notes,
+    next_followup: nextFollowup
+  };
+
+  const btn = document.getElementById("saveCallBtn");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Saving…`;
+
+  try {
+    await Api.addCall(payload);
+    const newStatus = OUTCOME_TO_STATUS[outcome] || "called";
+    await Api.updateContact(contactId, {
+      status: newStatus,
+      next_followup: nextFollowup || ""
+    });
+    toast("Call outcome saved", "success");
+    closeModal("callModalOverlay");
+    await loadAllData(true);
+    if (state.activeDetailContactId === contactId && document.getElementById("detailModalOverlay").classList.contains("open")) {
+      openDetailModal(contactId);
+    }
+  } catch (err) {
+    toast("Could not save call: " + err.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-check"></i> Save Call`;
+  }
+}
+
+/* ----------------------------- MODAL: ADD NOTE -------------------------------- */
+
+function openNoteModal(contactId) {
+  document.getElementById("note_contact_id").value = contactId;
+  document.getElementById("note_content").value = "";
+  openModal("noteModalOverlay");
+}
+
+async function handleSaveNote() {
+  const contactId = document.getElementById("note_contact_id").value;
+  const content = document.getElementById("note_content").value.trim();
+  if (!content) { toast("Note cannot be empty", "error"); return; }
+
+  const btn = document.getElementById("saveNoteBtn");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Saving…`;
+
+  try {
+    await Api.addNote({ contact_id: contactId, member: state.currentMemberId, note_content: content });
+    toast("Note added", "success");
+    closeModal("noteModalOverlay");
+    if (state.activeDetailContactId === contactId && document.getElementById("detailModalOverlay").classList.contains("open")) {
+      openDetailModal(contactId);
+    }
+  } catch (err) {
+    toast("Could not save note: " + err.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-check"></i> Save Note`;
+  }
+}
+
+/* ----------------------------- SETTINGS VIEW ---------------------------------- */
+
+function renderSettingsView() {
+  const content = document.getElementById("content");
+  const s = state.settings;
+  const t = state.theme;
+  const m = getMember(state.currentMemberId) || APP_MEMBER;
+
+  content.innerHTML = `
+    <div class="settings-section">
+      <h3>Appearance</h3>
+      <p class="hint">Switch between light and dark, and set the accent color used across the app.</p>
+      <div class="theme-mode-row" style="margin-bottom:18px;">
+        <button class="theme-mode-btn ${t.mode === "light" ? "active" : ""}" id="themeLightBtn">
+          <i class="fa-solid fa-sun"></i><span>Light</span>
+        </button>
+        <button class="theme-mode-btn ${t.mode === "dark" ? "active" : ""}" id="themeDarkBtn">
+          <i class="fa-solid fa-moon"></i><span>Dark</span>
+        </button>
+      </div>
+      <div class="color-picker-row">
+        <div class="color-swatches" id="colorSwatches">
+          ${THEME_PRESETS.map(c => `<div class="color-swatch ${c.toLowerCase() === (t.color || "").toLowerCase() ? "active" : ""}" style="background:${c};" data-color="${c}" title="${c}"></div>`).join("")}
+        </div>
+        <div class="color-picker-custom">
+          <input type="color" id="colorPickerInput" value="${escapeHtml(t.color || DEFAULT_THEME.color)}" title="Drag to pick a custom color">
+          <div class="hex-input-group">
+            <span>#</span>
+            <input type="text" id="colorHexInput" maxlength="7" value="${escapeHtml((t.color || DEFAULT_THEME.color).replace('#', ''))}" placeholder="2563EB">
+          </div>
+          <button class="btn btn-sm" id="applyHexBtn"><i class="fa-solid fa-check"></i> Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Connect Google Sheet</h3>
+      <p class="hint">Paste the deployed Apps Script Web App URL to sync contacts, calls and notes with a Google Sheet. See Code.gs in the project package for the backend to deploy.</p>
+      <div class="form-group full" style="margin-bottom:10px;">
+        <label>Web App URL</label>
+        <input type="url" id="s_apiUrl" placeholder="https://script.google.com/macros/s/XXXX/exec" value="${escapeHtml(s.apiUrl)}">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn" id="testConnBtn"><i class="fa-solid fa-plug"></i> Test Connection</button>
+        <button class="btn" id="manualSyncBtn"><i class="fa-solid fa-rotate"></i> Sync Now</button>
+        <button class="btn btn-primary" id="saveApiUrlBtn"><i class="fa-solid fa-check"></i> Save URL</button>
+      </div>
+      <div id="connTestResult" style="margin-top:10px;font-size:12.5px;"></div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Data Source</h3>
+      <div class="settings-row">
+        <div>
+          <div style="font-weight:600;font-size:13.5px;">Use local storage only</div>
+          <div class="hint" style="margin:2px 0 0;">When off, data reads and writes go to the connected Google Sheet instead of this browser.</div>
+        </div>
+        <div class="toggle ${s.demoMode ? "on" : ""}" id="demoToggle"></div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div style="font-weight:600;font-size:13.5px;">Auto-sync interval</div>
+          <div class="hint" style="margin:2px 0 0;">How often live data refreshes automatically, between 15 and 30 seconds.</div>
+        </div>
+        <select class="select-input" id="autoSyncSelect">
+          <option value="15">15s</option>
+          <option value="20">20s</option>
+          <option value="30">30s</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Clear Workspace Data</h3>
+      <p class="hint">Permanently remove all saved contacts, call history and notes from this browser. Your sign-in, theme and connection settings will be kept.</p>
+      <div class="settings-row">
+        <div>
+          <div style="font-weight:600;font-size:13.5px;">Workspace records</div>
+          <div class="hint" style="margin:2px 0 0;">${state.contacts.length} contacts · ${state.calls.length} calls · ${state.notes.length} notes</div>
+        </div>
+        <button class="btn btn-danger" id="clearWorkspaceDataBtn" ${s.demoMode ? "" : "disabled"}><i class="fa-solid fa-trash-can"></i> Clear All Data</button>
+      </div>
+      ${s.demoMode ? "" : '<p class="hint" style="margin:10px 0 0;">Clear all is disabled while Google Sheets sync is active. Clear the records in the connected sheet to avoid leaving remote data behind.</p>'}
+    </div>
+
+    <div class="settings-section">
+      <h3>Account</h3>
+      <div class="settings-row" style="border-top:none;">
+        <div class="member-card" style="padding:0;">
+          <div class="member-avatar">${escapeHtml(initials(m.member_name))}</div>
+          <div class="member-info">
+            <div class="member-name">${escapeHtml(m.member_name)}</div>
+            <div class="member-email">${escapeHtml(m.role || "Owner")}</div>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-danger" id="signOutBtn2"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("autoSyncSelect").value = String(s.autoSyncSeconds || 20);
+
+  document.getElementById("themeLightBtn").addEventListener("click", () => { setThemeMode("light"); renderSettingsView(); });
+  document.getElementById("themeDarkBtn").addEventListener("click", () => { setThemeMode("dark"); renderSettingsView(); });
+
+  document.querySelectorAll("#colorSwatches .color-swatch").forEach(sw => {
+    sw.addEventListener("click", () => { setThemeColor(sw.getAttribute("data-color")); renderSettingsView(); });
+  });
+  document.getElementById("colorPickerInput").addEventListener("input", (e) => { setThemeColor(e.target.value); });
+  document.getElementById("colorPickerInput").addEventListener("change", () => renderSettingsView());
+  document.getElementById("applyHexBtn").addEventListener("click", () => {
+    const raw = document.getElementById("colorHexInput").value.trim();
+    const hex = raw.startsWith("#") ? raw : "#" + raw;
+    if (!isValidHex(hex)) { toast("Enter a valid hex color, for example 2563EB", "error"); return; }
+    setThemeColor(hex);
+    renderSettingsView();
+  });
+  document.getElementById("colorHexInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") document.getElementById("applyHexBtn").click();
+  });
+
+  document.getElementById("demoToggle").addEventListener("click", () => {
+    state.settings.demoMode = !state.settings.demoMode;
+    lsSet(LS_KEYS.settings, state.settings);
+    ensureLocalData();
+    setSyncStatus("idle");
+    restartAutoSync();
+    renderSettingsView();
+    loadAllData();
+    toast(state.settings.demoMode ? "Using local storage only" : "Connected to Google Sheet", "info");
+  });
+
+  document.getElementById("autoSyncSelect").addEventListener("change", (e) => {
+    state.settings.autoSyncSeconds = parseInt(e.target.value, 10);
+    lsSet(LS_KEYS.settings, state.settings);
+    restartAutoSync();
+  });
+
+  document.getElementById("saveApiUrlBtn").addEventListener("click", () => {
+    state.settings.apiUrl = document.getElementById("s_apiUrl").value.trim();
+    lsSet(LS_KEYS.settings, state.settings);
+    toast("Web App URL saved", "success");
+  });
+
+  document.getElementById("testConnBtn").addEventListener("click", async () => {
+    const urlNow = document.getElementById("s_apiUrl").value.trim();
+    state.settings.apiUrl = urlNow;
+    const resultBox = document.getElementById("connTestResult");
+    resultBox.innerHTML = `<span class="spinner dark"></span> Testing...`;
+    const result = await testConnection();
+    if (result.ok) {
+      resultBox.innerHTML = `<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Connection successful.</span>`;
+    } else {
+      resultBox.innerHTML = `<span style="color:var(--danger);"><i class="fa-solid fa-circle-exclamation"></i> ${escapeHtml(result.message)}</span>`;
+    }
+  });
+
+  document.getElementById("manualSyncBtn").addEventListener("click", () => loadAllData());
+  document.getElementById("clearWorkspaceDataBtn")?.addEventListener("click", () => {
+    const contactCount = state.contacts.length;
+    const callCount = state.calls.length;
+    const noteCount = state.notes.length;
+    if (!state.settings.demoMode) {
+      toast("Switch to local storage to clear browser data. Google Sheet records must be cleared in the sheet.", "error");
+      return;
+    }
+    if (!contactCount && !callCount && !noteCount) {
+      toast("Workspace data is already empty", "info");
+      return;
+    }
+    openConfirm(
+      "Clear all workspace data?",
+      `This permanently deletes ${contactCount} contacts, ${callCount} call records and ${noteCount} notes from this browser. Your sign-in, theme and settings will remain. This cannot be undone.`,
+      () => {
+        lsSet(LS_KEYS.contacts, []);
+        lsSet(LS_KEYS.calls, []);
+        lsSet(LS_KEYS.notes, []);
+        state.contacts = [];
+        state.calls = [];
+        state.notes = [];
+        state.activeDetailContactId = null;
+        closeModal("confirmModalOverlay");
+        updateNavCounts();
+        renderSettingsView();
+        toast("All workspace records have been cleared", "success");
+      }
+    );
+  });
+  document.getElementById("signOutBtn2").addEventListener("click", signOut);
+}
+
+/* ----------------------------- MODAL HELPERS ----------------------------------- */
+
+function openModal(id) { document.getElementById(id).classList.add("open"); }
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+function openConfirm(title, body, onConfirm) {
+  document.getElementById("confirmTitle").textContent = title;
+  document.getElementById("confirmBody").textContent = body;
+  const btn = document.getElementById("confirmActionBtn");
+  const newBtn = btn.cloneNode(true); // clear old listeners
+  btn.parentNode.replaceChild(newBtn, btn);
+  newBtn.addEventListener("click", onConfirm);
+  openModal("confirmModalOverlay");
+}
+
+/* ----------------------------- SIDEBAR (MOBILE) --------------------------------- */
+
+function openSidebarMobile() {
+  document.getElementById("sidebar").classList.add("open");
+  document.getElementById("sidebarOverlay").classList.add("open");
+}
+function closeSidebarMobile() {
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("sidebarOverlay").classList.remove("open");
+}
+
+/* ----------------------------- GLOBAL EVENT BINDING ------------------------------ */
+
+function bindGlobalEvents() {
+  document.querySelectorAll(".nav-item[data-view]").forEach(btn => {
+    btn.addEventListener("click", () => setView(btn.getAttribute("data-view")));
+  });
+
+  document.getElementById("menuBtn").addEventListener("click", openSidebarMobile);
+  document.getElementById("sidebarOverlay").addEventListener("click", closeSidebarMobile);
+
+  document.getElementById("addContactBtn").addEventListener("click", openAddContactModal);
+  document.getElementById("refreshBtn").addEventListener("click", () => loadAllData());
+
+  document.getElementById("globalSearch").addEventListener("input", debounce((e) => {
+    state.searchQuery = e.target.value;
+    if (state.view === "settings") return;
+    renderListView();
+  }, 180));
+
+  document.getElementById("memberCardBtn").addEventListener("click", (e) => {
+    if (e.target.closest("#logoutBtn")) return;
+    renderMemberSelectList();
+    openModal("memberModalOverlay");
+  });
+  document.getElementById("logoutBtn").addEventListener("click", (e) => { e.stopPropagation(); signOut(); });
+  document.getElementById("accountLogoutBtn").addEventListener("click", () => { closeModal("memberModalOverlay"); signOut(); });
+
+  document.getElementById("saveContactBtn").addEventListener("click", handleSaveContact);
+  document.getElementById("saveCallBtn").addEventListener("click", handleSaveCall);
+  document.getElementById("saveNoteBtn").addEventListener("click", handleSaveNote);
+
+  document.querySelectorAll("[data-close]").forEach(btn => {
+    btn.addEventListener("click", () => closeModal(btn.getAttribute("data-close")));
+  });
+  document.querySelectorAll(".modal-overlay").forEach(overlay => {
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) closeModal(overlay.id); });
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      document.querySelectorAll(".modal-overlay.open").forEach(o => closeModal(o.id));
+    }
+  });
+
+  // Delegate clicks that can appear after re-render (empty-state button)
+  document.getElementById("content").addEventListener("click", (e) => {
+    if (e.target.closest("#emptyAddBtn")) openAddContactModal();
+  });
+
+  window.addEventListener("online", () => loadAllData(true));
+
+  document.getElementById("installBtn").addEventListener("click", triggerInstallPrompt);
+}
+
+/* ----------------------------- AUTHENTICATION ---------------------------------- */
+
+function isSignedIn() {
+  return sessionStorage.getItem(LS_KEYS.auth) === "1" || lsGet(LS_KEYS.auth, false) === true;
+}
+
+function signIn(remember) {
+  sessionStorage.setItem(LS_KEYS.auth, "1");
+  if (remember) lsSet(LS_KEYS.auth, true);
+}
+
+function signOut() {
+  sessionStorage.removeItem(LS_KEYS.auth);
+  lsSet(LS_KEYS.auth, false);
+  document.getElementById("appRoot").style.display = "none";
+  document.getElementById("loginScreen").style.display = "flex";
+  document.getElementById("loginUser").value = "";
+  document.getElementById("loginPass").value = "";
+  document.getElementById("loginError").classList.remove("show");
+  closeModal("memberModalOverlay");
+}
+
+function bindLoginForm() {
+  document.getElementById("loginForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const user = document.getElementById("loginUser").value.trim();
+    const pass = document.getElementById("loginPass").value.trim();
+    const errBox = document.getElementById("loginError");
+    if (user.toLowerCase() === APP_USER.username.toLowerCase() && pass === APP_USER.password) {
+      errBox.classList.remove("show");
+      signIn(true);
+      document.getElementById("loginScreen").style.display = "none";
+      document.getElementById("appRoot").style.display = "flex";
+      init();
+    } else {
+      errBox.classList.add("show");
+    }
+  });
+}
+
+/* ----------------------------- THEME ---------------------------------- */
+
+function applyTheme() {
+  const root = document.documentElement;
+  root.setAttribute("data-theme", state.theme.mode === "dark" ? "dark" : "light");
+  const color = state.theme.color || DEFAULT_THEME.color;
+  root.style.setProperty("--primary", color);
+  root.style.setProperty("--primary-hover", shadeColor(color, -14));
+  root.style.setProperty("--primary-soft", state.theme.mode === "dark" ? shadeColor(color, -78) : hexToSoft(color));
+  const metaTheme = document.getElementById("themeColorMeta");
+  if (metaTheme) metaTheme.setAttribute("content", color);
+}
+
+function hexToSoft(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgb(${Math.round(r + (255 - r) * 0.92)}, ${Math.round(g + (255 - g) * 0.92)}, ${Math.round(b + (255 - b) * 0.92)})`;
+}
+
+function hexToRgb(hex) {
+  const clean = hex.replace("#", "");
+  const bigint = parseInt(clean.length === 3 ? clean.split("").map(c => c + c).join("") : clean, 16);
+  return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
+}
+
+function shadeColor(hex, percent) {
+  const { r, g, b } = hexToRgb(hex);
+  const amt = Math.round(2.55 * percent);
+  const clamp = (v) => Math.max(0, Math.min(255, v));
+  const nr = clamp(r + amt), ng = clamp(g + amt), nb = clamp(b + amt);
+  return "#" + [nr, ng, nb].map(v => v.toString(16).padStart(2, "0")).join("");
+}
+
+function isValidHex(hex) {
+  return /^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$/.test(hex);
+}
+
+function setThemeMode(mode) {
+  state.theme.mode = mode;
+  lsSet(LS_KEYS.theme, state.theme);
+  applyTheme();
+}
+
+function setThemeColor(hex) {
+  if (!isValidHex(hex)) return;
+  state.theme.color = hex.startsWith("#") ? hex : "#" + hex;
+  lsSet(LS_KEYS.theme, state.theme);
+  applyTheme();
+}
+
+/* ----------------------------- QR CALL ---------------------------------- */
+
+function openQrModal(contactId) {
+  const c = state.contacts.find(x => x.contact_id === contactId);
+  if (!c || !c.phone) { toast("This contact has no phone number", "error"); return; }
+  const telValue = "tel:" + c.phone.replace(/\s+/g, "");
+  const holder = document.getElementById("qrCanvasHolder");
+  holder.innerHTML = "";
+  // eslint-disable-next-line no-undef
+  new QRCode(holder, {
+    text: telValue,
+    width: 220,
+    height: 220,
+    colorDark: "#111827",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  document.getElementById("qrNumberLabel").textContent = c.phone;
+  openModal("qrModalOverlay");
+}
+
+/* ----------------------------- INSTALL (PWA) ---------------------------------- */
+
+function setupInstallPrompt() {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    state.deferredInstallPrompt = e;
+    const btn = document.getElementById("installBtn");
+    if (btn) btn.style.display = "inline-flex";
+  });
+  window.addEventListener("appinstalled", () => {
+    state.deferredInstallPrompt = null;
+    const btn = document.getElementById("installBtn");
+    if (btn) btn.style.display = "none";
+    toast("CallDesk installed", "success");
+  });
+}
+
+async function triggerInstallPrompt() {
+  if (!state.deferredInstallPrompt) {
+    toast("Use your browser's menu to install this app, or Add to Home Screen", "info");
+    return;
+  }
+  state.deferredInstallPrompt.prompt();
+  await state.deferredInstallPrompt.userChoice;
+  state.deferredInstallPrompt = null;
+  document.getElementById("installBtn").style.display = "none";
+}
+
+/* ----------------------------- IMPORT / EXPORT (EXCEL) ---------------------------------- */
+
+function renderImportExportView() {
+  const content = document.getElementById("content");
+  content.innerHTML = `
+    <div class="settings-section">
+      <h3>Export to Excel</h3>
+      <p class="hint">Download all contacts, call history and notes as a single .xlsx workbook with one sheet per table.</p>
+      <div class="io-row">
+        <button class="btn btn-primary" id="exportXlsxBtn"><i class="fa-solid fa-file-excel"></i> Export Workbook (.xlsx)</button>
+        <button class="btn" id="exportContactsOnlyBtn"><i class="fa-solid fa-download"></i> Export Contacts Only</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Import from Excel</h3>
+      <p class="hint">Upload an .xlsx or .csv file. The first row must be column headers. Recognized columns: Full_Name, Phone, Email, Company, Location, Lead_Source, Status, Next_Followup, Notes.</p>
+      <div class="file-drop" id="importDropZone">
+        <i class="fa-solid fa-file-arrow-up"></i>
+        <div class="file-drop-text">Click to choose a file, or drag and drop it here</div>
+        <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+      </div>
+      <div id="importResult" style="margin-top:12px;font-size:13px;"></div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Connect Google Sheet</h3>
+      <p class="hint">Link a Google Sheet through Apps Script so data syncs automatically instead of staying only on this device.</p>
+      <button class="btn" id="goToSettingsBtn"><i class="fa-solid fa-gear"></i> Open Connection Settings</button>
+    </div>
+  `;
+
+  document.getElementById("exportXlsxBtn").addEventListener("click", exportWorkbook);
+  document.getElementById("exportContactsOnlyBtn").addEventListener("click", exportContactsOnly);
+  document.getElementById("goToSettingsBtn").addEventListener("click", () => setView("settings"));
+
+  const dropZone = document.getElementById("importDropZone");
+  const fileInput = document.getElementById("importFileInput");
+  dropZone.addEventListener("click", () => fileInput.click());
+  dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.style.borderColor = "var(--primary)"; });
+  dropZone.addEventListener("dragleave", () => { dropZone.style.borderColor = ""; });
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = "";
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) handleImportFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", (e) => {
+    if (e.target.files && e.target.files[0]) handleImportFile(e.target.files[0]);
+  });
+}
+
+function exportWorkbook() {
+  if (typeof XLSX === "undefined") { toast("Excel library not available", "error"); return; }
+  const wb = XLSX.utils.book_new();
+  const contactsSheet = XLSX.utils.json_to_sheet(state.contacts.map(c => ({
+    Contact_ID: c.contact_id, Full_Name: c.full_name, Phone: c.phone, Email: c.email,
+    Company: c.company, Location: c.location, Lead_Source: c.lead_source,
+    Assigned_To: (getMember(c.assigned_to) || {}).member_name || "", Status: c.status,
+    Notes: c.notes, Next_Followup: c.next_followup, Created_At: c.created_at, Updated_At: c.updated_at
+  })));
+  XLSX.utils.book_append_sheet(wb, contactsSheet, "Contacts");
+
+  const callsSheet = XLSX.utils.json_to_sheet(state.calls.map(c => ({
+    Call_ID: c.call_id, Contact_ID: c.contact_id, Call_Date: c.call_date, Call_Time: c.call_time,
+    Outcome: c.outcome, Call_Notes: c.call_notes, Next_Followup: c.next_followup
+  })));
+  XLSX.utils.book_append_sheet(wb, callsSheet, "Call_History");
+
+  const notesSheet = XLSX.utils.json_to_sheet(state.notes.map(n => ({
+    Note_ID: n.note_id, Contact_ID: n.contact_id, Note_Content: n.note_content,
+    Created_At: n.created_at, Updated_At: n.updated_at
+  })));
+  XLSX.utils.book_append_sheet(wb, notesSheet, "Notes");
+
+  XLSX.writeFile(wb, `CallDesk_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  toast("Workbook exported", "success");
+}
+
+function exportContactsOnly() {
+  if (typeof XLSX === "undefined") { toast("Excel library not available", "error"); return; }
+  const wb = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet(state.contacts.map(c => ({
+    Full_Name: c.full_name, Phone: c.phone, Email: c.email, Company: c.company,
+    Location: c.location, Lead_Source: c.lead_source, Status: c.status,
+    Next_Followup: c.next_followup, Notes: c.notes
+  })));
+  XLSX.utils.book_append_sheet(wb, sheet, "Contacts");
+  XLSX.writeFile(wb, `CallDesk_Contacts_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  toast("Contacts exported", "success");
+}
+
+function normalizeImportKey(key) {
+  return String(key || "").trim().toLowerCase().replace(/[\s_-]+/g, "_");
+}
+
+async function handleImportFile(file) {
+  const resultBox = document.getElementById("importResult");
+  resultBox.innerHTML = `<span class="spinner dark"></span> Reading file...`;
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: "array" });
+    const firstSheetName = wb.SheetNames[0];
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[firstSheetName], { defval: "" });
+
+    if (!rows.length) {
+      resultBox.innerHTML = `<span style="color:var(--danger);">No rows found in that file.</span>`;
+      return;
+    }
+
+    const fieldMap = {
+      full_name: "full_name", name: "full_name",
+      phone: "phone", phone_number: "phone", contact_number: "phone", mobile: "phone", whatsapp_number: "phone",
+      email: "email", email_id: "email", email_address: "email",
+      company: "company", college_university_name: "company", organization: "company",
+      location: "location",
+      lead_source: "lead_source", source: "lead_source",
+      status: "status",
+      next_followup: "next_followup", followup: "next_followup",
+      notes: "notes", note: "notes"
+    };
+
+    let imported = 0, skipped = 0;
+    const newContacts = [];
+    const now = nowIso();
+
+    rows.forEach(row => {
+      const normalized = {};
+      Object.keys(row).forEach(k => {
+        const mapped = fieldMap[normalizeImportKey(k)];
+        if (mapped && row[k] !== "") normalized[mapped] = String(row[k]).trim();
+      });
+      if (!normalized.full_name && !normalized.phone) { skipped++; return; }
+      newContacts.push({
+        contact_id: uid("c"),
+        full_name: normalized.full_name || "Unnamed Contact",
+        phone: normalized.phone || "",
+        email: normalized.email || "",
+        company: normalized.company || "",
+        location: normalized.location || "",
+        lead_source: normalized.lead_source || "Other",
+        assigned_to: APP_MEMBER.member_id,
+        status: STATUSES.includes(normalized.status) ? normalized.status : "new",
+        notes: normalized.notes || "",
+        next_followup: normalized.next_followup || "",
+        created_by: APP_MEMBER.member_id,
+        created_at: now,
+        updated_by: APP_MEMBER.member_id,
+        updated_at: now
+      });
+      imported++;
+    });
+
+    if (state.settings.demoMode) {
+      const all = lsGet(LS_KEYS.contacts, []);
+      lsSet(LS_KEYS.contacts, [...newContacts, ...all]);
+    } else {
+      for (const rec of newContacts) {
+        await Api.addContact(rec).catch(() => {});
+      }
+    }
+
+    resultBox.innerHTML = `<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Imported ${imported} contact${imported === 1 ? "" : "s"}${skipped ? `, skipped ${skipped} empty row${skipped === 1 ? "" : "s"}` : ""}.</span>`;
+    toast(`Imported ${imported} contacts`, "success");
+    await loadAllData(true);
+  } catch (err) {
+    resultBox.innerHTML = `<span style="color:var(--danger);"><i class="fa-solid fa-circle-exclamation"></i> Could not read that file: ${escapeHtml(err.message)}</span>`;
+  }
+}
+
+/* ----------------------------- START ---------------------------------------------- */
+
+document.addEventListener("DOMContentLoaded", () => {
+  bindLoginForm();
+  if (isSignedIn()) {
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("appRoot").style.display = "flex";
+    init();
+  }
+});
+</script>
+</body>
+</html>
